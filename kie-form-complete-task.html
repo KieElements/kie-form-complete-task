@@ -1,0 +1,159 @@
+<!--
+******* Author: Serhii Pahuta
+******* This code is a part of master's thesis: Polymer Elements for a Business Process Management System
+******* 2017 Brno
+-->
+
+<link rel="import" href="../polymer/polymer.html">
+<link rel="import" href="../kie-server-execute/kie-server-execute.html">
+<link rel="import" href="../kie-form/kie-form.html">
+
+<dom-module id="kie-form-complete-task">
+  <template>
+    <style>
+      :host {
+        display: block;
+      }
+    </style>
+    <kie-server-execute
+     id="getFormFields"
+     username="[[user.userId]]"
+     password="[[user.password]]"
+     op="[[formUrl]]"
+     response="{{taskForm}}"
+     server-url="{{serverUrl}}"></kie-server-execute>
+
+     <kie-server-execute
+     id="getInputValues"
+     username="[[user.userId]]"
+     password="[[user.password]]"
+     op="[[inputFormUrl]]"
+     response="{{taskInputs}}"
+     server-url="{{serverUrl}}"></kie-server-execute>
+
+     <kie-server-execute
+     id="getOutputValues"
+     username="[[user.userId]]"
+     password="[[user.password]]"
+     op="[[outputFormUrl]]"
+     response="{{taskOutputs}}"
+     server-url="{{serverUrl}}"></kie-server-execute>
+
+    <kie-form
+     user="[[user]]"
+     url="[[completeTaskUrl]]"
+     form-data="[[taskFormData]]"
+     button-name="[[buttonName]]"
+     method="PUT"
+     hidden$="{{hidden}}"></kie-form>
+  </template>
+
+  <script>
+    class KieFormCompleteTask extends Polymer.Element {
+        static get is() {return 'kie-form-complete-task';}
+
+        static get properties() {
+            return {
+                serverUrl: {
+                    type: String
+                },
+                container: {
+                    type: String
+                },
+                taskId: {
+                    type: Number
+                },
+                formUrl: {
+                    type: String
+                },
+                inputFormUrl: {
+                    type: String
+                },
+                outputFormUrl: {
+                    type: String
+                },
+                completeTaskUrl: {
+                    type: String
+                },
+                taskForm: {
+                    type: Object,
+                    observer: "_formDataReady"
+                },
+                taskInputs: {
+                    type: Object,
+                    observer: "_inputDataReady"
+                },
+                taskOutputs: {
+                    type: Object,
+                    observer: "_outputDataReady"
+                },
+                taskFormData: {
+                    type: Object
+                },
+                user: {
+                    type: Object,
+                    notify: true
+                },
+                buttonName: {
+                    type: String,
+                    value: "Complete Task"
+                },
+                hidden: {
+                    type: Boolean,
+                    value: false
+                },
+                noInit: {
+                    type: Boolean,
+                    value: false
+                }
+            };
+        }
+
+        ready() {
+            super.ready();
+            if(!this.noInit) this.fetchTaskForms();
+        }
+
+        fetchTaskForms() {
+            if (!this.hidden) {
+                this.formUrl = "containers/" + this.container + "/forms/tasks/" + this.taskId;
+                this.completeTaskUrl = this.serverUrl + "containers/" + this.container + "/tasks/" + this.taskId + "/states/completed?auto-progress=true";
+                this.inputFormUrl = `containers/${this.container}/tasks/${this.taskId}/contents/input`;
+                this.$.getFormFields.execute();
+            }
+        }
+
+        _formDataReady() {
+            this.outputFormUrl = `containers/${this.container}/processes/definitions/${this.taskForm[0].model.processId}/tasks/users/${this.taskForm[0].model.taskName}/outputs`;
+            this.$.getInputValues.execute();
+        }
+
+        _inputDataReady() {
+            this.$.getOutputValues.execute();
+        }
+
+        _outputDataReady() {
+            let temp = this.taskForm[0];
+            let inBindingVar, outBindingVar;
+            for (let i=0;i<temp.fields.length;i++) {
+
+                inBindingVar = this.taskInputs[temp.fields[i].binding];
+                if (inBindingVar !== undefined) {
+                    temp.fields[i].innerData = inBindingVar;
+                    temp.fields[i].inputBinding = true;
+                }
+
+                outBindingVar = this.taskOutputs.taskOutputs[temp.fields[i].binding];
+                if (outBindingVar !== undefined) {
+                    temp.fields[i].outputBinding = true;
+                }
+            }
+            this.set('taskFormData',temp);
+        }
+
+    }
+
+    customElements.define(KieFormCompleteTask.is,KieFormCompleteTask);
+  </script>
+
+</dom-module>
